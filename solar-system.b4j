@@ -1,0 +1,242 @@
+﻿AppType=JavaFX
+Build1=Default,b4j.example
+File1=earth.png
+File10=sun.png
+File11=uranus.png
+File12=venus.png
+File2=jupiter.png
+File3=mars.png
+File4=mercury.png
+File5=moon.png
+File6=music.mp3
+File7=neptune.png
+File8=saturn.png
+File9=stars2.png
+FileGroup1=Default Group
+FileGroup10=Default Group
+FileGroup11=Default Group
+FileGroup12=Default Group
+FileGroup2=Default Group
+FileGroup3=Default Group
+FileGroup4=Default Group
+FileGroup5=Default Group
+FileGroup6=Default Group
+FileGroup7=Default Group
+FileGroup8=Default Group
+FileGroup9=Default Group
+Group=Default Group
+Library1=jcore
+Library2=jfx
+Library3=jxui
+NumberOfFiles=12
+NumberOfLibraries=3
+NumberOfModules=0
+Version=9.1
+@EndOfDesignText@
+#Region Project Attributes 
+	#MainFormWidth: 1400
+	#MainFormHeight: 900 
+#End Region
+
+Sub Process_Globals
+	Type point(x As Float, y As Float)
+	Type stats(speed As Int, size As Int, distance As Int)
+	Type planet(name As String, bmp As B4XBitmap, speed As Float, position As point, radius As Float, pathRadius As Float, degree As Float, pStats As stats)
+	Private fx As JFX
+	Private MainForm As Form
+	Private xui As XUI 
+	Private pnl As B4XView
+	Private vpW, vpH As Float
+	Private cnv As B4XCanvas
+	Private timer As Timer
+	Private frames As Int
+	Private planetList As List
+	Private initSpeed = 1, initSize = 7.5, initPradius = 60 As Float
+	Private selectedPlanet As String = "Earth" 'default selected
+	Private stars_bmp As B4XBitmap
+	Private mp As MediaPlayer
+End Sub
+
+Sub AppStart (Form1 As Form, Args() As String)
+	MainForm = Form1
+	MainForm.Show
+	MainForm.Resizable = False
+	MainForm.Title = "2D Solar System"
+	
+	pnl = xui.CreatePanel("pnl")
+	vpW = MainForm.RootPane.Width
+	vpH = MainForm.RootPane.Height
+	planetList.Initialize
+	
+	mp.Initialize("mp",File.GetUri(File.DirAssets,"music.mp3"))
+	mp.CycleCount = -1
+	mp.Play
+
+	loadbitmaps
+	
+	MainForm.RootPane.AddNode(pnl,0,0,vpW,vpH)
+	cnv.Initialize(pnl)
+	
+	timer.Initialize("timer",25)
+	timer.Enabled = True
+End Sub
+
+Private Sub loadbitmaps
+	stars_bmp = xui.LoadBitmap(File.DirAssets,"stars2.png")
+	Dim sunSize As Float = initPradius * 1.7 'getRadiusSize(4370005)*0.55 'real Size
+	planetList.Add(Createplanet("Sun",xui.LoadBitmap(File.DirAssets,"sun.png"),0,Createpoint(vpW/2,vpH/2,sunSize),sunSize,0,0,Createstats(0,4370005,0)))
+	planetList.Add(Createplanet("Mercury",xui.LoadBitmap(File.DirAssets,"mercury.png"),initSpeed,Createpoint(vpW/2+(initPradius),vpH/2,initSize),initSize,initPradius,0,Createstats(170503,15329,57909227)))
+	planetList.Add(Createplanet("Venus",xui.LoadBitmap(File.DirAssets,"venus.png"),getSpeed(126074),Createpoint(vpW/2+getPathRadius(108209475),vpH/2,getRadiusSize(38024)),getRadiusSize(38024),getPathRadius(108209475),0,Createstats(126074,38024,108209475)))
+	planetList.Add(Createplanet("Earth",xui.LoadBitmap(File.DirAssets,"earth.png"),getSpeed(107218),Createpoint(vpW/2+getPathRadius(149598262),vpH/2,getRadiusSize(40030)),getRadiusSize(40030),getPathRadius(149598262),0,Createstats(107218,40030,149598262)))
+	planetList.Add(Createplanet("Mars",xui.LoadBitmap(File.DirAssets,"mars.png"),getSpeed(86677),Createpoint(vpW/2+getPathRadius(227943824),vpH/2,getRadiusSize(21296)),getRadiusSize(21296),getPathRadius(227943824),0,Createstats(86677,21296,227943824))) 
+	planetList.Add(Createplanet("Jupiter",xui.LoadBitmap(File.DirAssets,"jupiter.png"),getSpeed(47002),Createpoint(vpW/2+getPathRadius(280000000),vpH/2,getRadiusSize(80000)),getRadiusSize(80000),getPathRadius(280000000),0,Createstats(47002,439263,778340821))) 'size + distance are fake for drawing inside screen
+	planetList.Add(Createplanet("Saturn",xui.LoadBitmap(File.DirAssets,"saturn.png"),getSpeed(34701),Createpoint(vpW/2+getPathRadius(340000000),vpH/2,getRadiusSize(120000)),getRadiusSize(120000),getPathRadius(340000000),0,Createstats(34701,365882,1426666422))) 'size + distance are fake for drawing inside screen
+	planetList.Add(Createplanet("Uranus",xui.LoadBitmap(File.DirAssets,"uranus.png"),getSpeed(24477),Createpoint(vpW/2+getPathRadius(400000000),vpH/2,getRadiusSize(45000)),getRadiusSize(45000),getPathRadius(400000000),0,Createstats(24477,159354,2870658186))) 'size + distance are fake for drawing inside screen
+	planetList.Add(Createplanet("Neptune",xui.LoadBitmap(File.DirAssets,"neptune.png"),getSpeed(19566),Createpoint(vpW/2+getPathRadius(440000000),vpH/2,getRadiusSize(45000)),getRadiusSize(45000),getPathRadius(440000000),0,Createstats(19566,154704,4498396441)))
+End Sub
+
+Private Sub timer_Tick
+	frames = frames + 1
+	draw
+End Sub
+
+Private Sub draw
+	cnv.ClearRect(cnv.TargetRect)
+	drawstars
+	drawplanets	
+	drawtext
+	cnv.Invalidate
+End Sub
+
+Private Sub drawstars
+	cnv.DrawBitmap(stars_bmp,getrect(0,0,vpW,vpH))
+End Sub
+
+Private Sub drawplanets
+	For Each p As planet In planetList
+		If p.name.ToLowerCase <> "sun" Then 
+			p.degree = (p.degree + p.speed) Mod 360
+			p.position = returnNewPosition(p.pathRadius,p.degree,p.radius)
+			cnv.DrawCircle(vpW/2,vpH/2,p.pathRadius,xui.Color_ARGB(50,255,255,255),False,1) 'draw radius			
+		End If
+		If selectedPlanet.ToLowerCase = p.name.ToLowerCase Then drawStats(p)
+		cnv.DrawBitmap(p.bmp,getrect(p.position.x,p.position.y,p.radius,p.radius))
+	Next
+End Sub
+
+Private Sub getSpeed(pSpeed As Int) As Float
+	Return (initSpeed/170503)*pSpeed
+End Sub
+
+Private Sub getRadiusSize(pSize As Int) As Float
+	Return (initSize/15329)*pSize
+End Sub
+
+Private Sub getPathRadius(pDistance As Int) As Float
+	Return (initPradius/57909227)*pDistance
+End Sub
+
+Private Sub drawtext
+	Dim defClr As Int = xui.Color_ARGB(150,255,255,255)
+	Dim selClr As Int = xui.Color_ARGB(150,0,150,255)
+	cnv.DrawText("2D Solar System",vpW*0.05,vpH*0.05,xui.CreateDefaultBoldFont(22),defClr,"LEFT")
+	cnv.DrawLine(vpW*0.04,vpH*0.065,vpW*0.18,vpH*0.065,defClr,1)
+	cnv.DrawText("Sun",vpW*0.05,vpH*0.15,xui.CreateDefaultBoldFont(18),IIf(selectedPlanet.ToLowerCase="sun",selClr,defClr),"LEFT")
+	cnv.DrawText("Mercury",vpW*0.05,vpH*0.2,xui.CreateDefaultBoldFont(18),IIf(selectedPlanet.ToLowerCase="mercury",selClr,defClr),"LEFT")
+	cnv.DrawText("Venus",vpW*0.05,vpH*0.25,xui.CreateDefaultBoldFont(18),IIf(selectedPlanet.ToLowerCase="venus",selClr,defClr),"LEFT")
+	cnv.DrawText("Earth",vpW*0.05,vpH*0.3,xui.CreateDefaultBoldFont(18),IIf(selectedPlanet.ToLowerCase="earth",selClr,defClr),"LEFT")
+	cnv.DrawText("Mars",vpW*0.05,vpH*0.35,xui.CreateDefaultBoldFont(18),IIf(selectedPlanet.ToLowerCase="mars",selClr,defClr),"LEFT")
+	cnv.DrawText("Jupiter",vpW*0.05,vpH*0.4,xui.CreateDefaultBoldFont(18),IIf(selectedPlanet.ToLowerCase="jupiter",selClr,defClr),"LEFT")
+	cnv.DrawText("Saturn",vpW*0.05,vpH*0.45,xui.CreateDefaultBoldFont(18),IIf(selectedPlanet.ToLowerCase="saturn",selClr,defClr),"LEFT")
+	cnv.DrawText("Uranus",vpW*0.05,vpH*0.5,xui.CreateDefaultBoldFont(18),IIf(selectedPlanet.ToLowerCase="uranus",selClr,defClr),"LEFT")
+	cnv.DrawText("Neptune",vpW*0.05,vpH*0.55,xui.CreateDefaultBoldFont(18),IIf(selectedPlanet.ToLowerCase="neptune",selClr,defClr),"LEFT")
+End Sub
+
+Private Sub getrect(left As Float, top As Float, width As Float, height As Float) As B4XRect
+	Dim r As B4XRect
+	r.Initialize(left, top, left+width, top+height)
+	Return r
+End Sub
+ 
+Private Sub returnNewPosition(r As Float, d As Float, r2 As Float) As point
+	Dim p As point
+	p.Initialize
+	p.x= r*CosD(d) + (vpW/2-r2/2)
+	p.y=r*SinD(d) + (vpH/2-r2/2)
+	Return p 
+End Sub
+
+Private Sub drawStats(p As planet)
+	Dim leftPos As Float = p.position.x+(vpW*0.1)
+	cnv.DrawLine(p.position.x+(p.radius*0.7),p.position.y-(p.radius*0.1),leftPos*0.945,p.position.y-vpH*0.18,xui.Color_ARGB(150,255,255,255),1)
+	cnv.DrawLine(leftPos*0.945,p.position.y-vpH*0.18,leftPos*0.985,p.position.y-vpH*0.18,xui.Color_ARGB(150,255,255,255),1)
+	cnv.DrawText(p.name,leftPos,p.position.y-vpH*0.18,xui.CreateDefaultFont(16),xui.Color_White,"LEFT")
+	cnv.DrawText(NumberFormat2(p.pStats.speed,1,0,0,True) & " km/h",leftPos,p.position.y-vpH*0.14,xui.CreateDefaultFont(22),xui.Color_White,"LEFT")
+	cnv.DrawText(" (Orbit Velocity)",leftPos,p.position.y-vpH*0.1225,xui.CreateDefaultFont(9),xui.Color_White,"LEFT")
+	cnv.DrawText(NumberFormat2(p.pStats.size,1,0,0,True) & " km",leftPos,p.position.y-vpH*0.08,xui.CreateDefaultFont(22),xui.Color_White,"LEFT")
+	cnv.DrawText(" (Equatorial Circumference)",leftPos,p.position.y-vpH*0.0625,xui.CreateDefaultFont(9),xui.Color_White,"LEFT")
+	cnv.DrawText(NumberFormat2(p.pStats.distance,1,0,0,True) & " km",leftPos,p.position.y-vpH*0.025,xui.CreateDefaultFont(22),xui.Color_White,"LEFT")
+	cnv.DrawText(" (From Sun)",leftPos,p.position.y-vpH*0.0075,xui.CreateDefaultFont(9),xui.Color_White,"LEFT")
+End Sub
+ 
+Public Sub Createplanet (name As String, bmp As B4XBitmap, speed As Float, position As point, radius As Float, pathRadius As Float, degree As Float, pStats As stats) As planet
+	Dim t1 As planet
+	t1.Initialize
+	t1.name = name
+	t1.bmp = bmp
+	t1.speed = speed
+	t1.position = position
+	t1.radius = radius
+	t1.pathRadius = pathRadius
+	t1.degree = degree
+	t1.pStats = pStats
+	Return t1
+End Sub
+
+Public Sub Createpoint (x As Float, y As Float, r As Float) As point
+	Dim t1 As point
+	t1.Initialize
+	t1.x = x - r/2
+	t1.y = y - r/2
+	Return t1
+End Sub
+
+Public Sub Createstats (speed As Int, size As Int, distance As Int) As stats
+	Dim t1 As stats
+	t1.Initialize
+	t1.speed = speed
+	t1.size = size
+	t1.distance = distance
+	Return t1
+End Sub
+
+Private Sub MainForm_Touch (Action As Int, X As Float, Y As Float)
+	Select Action
+		Case 0 'down
+			If x < vpW*0.125 Then 
+				If y > vpH*0.125 And y < vpH*0.175 Then 
+					selectedPlanet = "Sun"
+				else if y > vpH*0.175 And y < vpH*0.225 Then
+					selectedPlanet = "Mercury"
+				else if y > vpH*0.225 And y < vpH*0.275 Then
+					selectedPlanet = "Venus"
+				else if y > vpH*0.275 And y < vpH*0.325 Then
+					selectedPlanet = "Earth"
+				else if y > vpH*0.325 And y < vpH*0.375 Then
+					selectedPlanet = "Mars"
+				else if y > vpH*0.375 And y < vpH*0.425 Then
+					selectedPlanet = "Jupiter"
+				else if y > vpH*0.425 And y < vpH*0.475 Then
+					selectedPlanet = "Saturn"
+				else if y > vpH*0.475 And y < vpH*0.525 Then
+					selectedPlanet = "Uranus"
+				else if y > vpH*0.525 And y < vpH*0.575 Then
+					selectedPlanet = "Neptune"
+				End If
+			End If
+		Case 1 'up
+			'do nothing
+		Case 2 'move
+			'do nothing
+	End Select
+End Sub
