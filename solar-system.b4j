@@ -40,7 +40,7 @@ Version=9.1
 
 Sub Process_Globals
 	Type point(x As Float, y As Float)
-	Type stats(speed As Int, size As Int, distance As Int)
+	Type stats(speed As Int, size As Int, distance As Long)
 	Type planet(name As String, bmp As B4XBitmap, speed As Float, position As point, radius As Float, pathRadius As Float, degree As Float, pStats As stats)
 	Private fx As JFX
 	Private MainForm As Form
@@ -201,7 +201,7 @@ Public Sub Createpoint (x As Float, y As Float, r As Float) As point
 	Return t1
 End Sub
 
-Public Sub Createstats (speed As Int, size As Int, distance As Int) As stats
+Public Sub Createstats (speed As Int, size As Int, distance As Long) As stats
 	Dim t1 As stats
 	t1.Initialize
 	t1.speed = speed
